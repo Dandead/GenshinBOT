@@ -64,7 +64,7 @@ def check_wish(**w) -> bool:
 	cursor = connect.cursor(dictionary=True)
 	cursor.execute(f'SELECT * FROM {w["gacha_type"]} WHERE id = "{w["id"]}"')
 	row = cursor.fetchone()
-	if row is not None:
+	if row:
 		return True
 	else:
 		return False
@@ -81,22 +81,27 @@ def append_wish(cursor, **w):				# without decorator because function will be ca
 	)
 	
 	
-def start_update(link):
-	data, authkey = wish_data(link), wish_data(link, key_return=True)
-	
-	user_exist = True if check_user(**data[0]) else create_user(**data[0])
-	create_user(**data)
-	cursor = connect(**DATA).cursor(dictionary=True)
-	for gacha_type in GACHA_TYPES:
-		end_id = ""
-		while True:
-			rn_data = wish_data(link, gacha_type, 20, end_id)
-			if len(rn_data) != 0:
-				for item in rn_data:
-					# if check_wish() and not user:
-					# 	break
-					append_wish(cursor, **item)
-				end_id = rn_data[len(rn_data) - 1]["id"]
-			else:
-				break
-	close_db(cursor)
+# def start_update(link):
+# 	data, authkey = wish_data(link), wish_data(link, key_return=True)
+# 	if check_user(**data[0]):
+# 		user_exist = True
+# 	else:
+# 		create_user(**data[0])
+# 		user_exist = False
+# 	cursor = connect(**DATA).cursor(dictionary=True)
+# 	for gacha_type in GACHA_TYPES:
+# 		end_id = ""
+# 		while True:
+# 			rn_data = wish_data(link, gacha_type, 20, end_id)
+# 			if len(rn_data) != 0:
+# 				for item in rn_data:
+# 					# if check_wish() and not user:
+# 					# 	break
+# 					append_wish(cursor, **item)
+# 				end_id = rn_data[len(rn_data) - 1]["id"]
+# 			else:
+# 				break
+# 	close_db(cursor)
+
+if __name__ == "__main__":
+	append_wish(open_db(), **wish_data(str(input()))[0])

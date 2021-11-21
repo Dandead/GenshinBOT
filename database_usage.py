@@ -31,3 +31,13 @@ def close_db(connect):
 	except mysql.connector.Error as e:
 		print(e)
 		raise mysql.connector.Error
+
+
+def open_db():
+	connect = mysql.connector.connect(**DATA)
+	return connect.cursor(dictionary=True)
+
+
+if __name__ == "__main__":
+	print(open_db())
+	
