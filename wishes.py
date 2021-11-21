@@ -7,7 +7,9 @@ import logging
 WISHES_LINK = "https://hk4e-api-os.mihoyo.com/event/gacha_info/api/getGachaLog?"
 KEY_VER = "authkey_ver=1"
 GACHA_TYPES = ["100", "200", "301", "302"]
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+	filename='log/wishes.log', level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S'
+)
 
 
 def wish_data(link, wish="200", size="1", end="0", key_return=False, link_return=False):
@@ -70,11 +72,11 @@ def check_wish(**w) -> bool:
 		return False
 
 
-# @db_connect_decorator
-def append_wish(cursor, **w):				# without decorator because function will be called often
+@db_connect_decorator
+def append_wish(**w):
 	"""Must append row with new item to DB"""
-	# connect = w.pop("conn")
-	# cursor = connect.cursor(dictionary=True)
+	connect = w.pop("conn")
+	cursor = connect.cursor(dictionary=True)
 	print(cursor)
 	cursor.execute(
 		f'INSERT INTO `{w["gacha_type"]}` VALUES ("{w["uid"]}","{w["time"]}","{w["name"]}","{w["item_type"]}","{w["rank_type"]}","{w["id"]}");'
