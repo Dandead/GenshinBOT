@@ -18,26 +18,26 @@ def db_connect_decorator(func):
 		except mysql.connector.Error as e:
 			print(e)
 		else:
-			connect.commit()
+			return res
 		finally:
+			connect.commit()
 			connect.close()
-		return res
 	return decorate
 
 
-def close_db(connect):
-	try:
-		connect.close()
-	except mysql.connector.Error as e:
-		print(e)
-		raise mysql.connector.Error
+# def close_db(connect):
+# 	try:
+# 		connect.close()
+# 	except mysql.connector.Error as e:
+# 		print(e)
+# 		raise mysql.connector.Error
 
 
-def open_db():
-	connect = mysql.connector.connect(**DATA)
-	return connect.cursor(dictionary=True)
-
-
-if __name__ == "__main__":
-	print(open_db())
+# def open_db():
+# 	connect = mysql.connector.connect(**DATA)
+# 	return connect.cursor(dictionary=True)
+#
+#
+# if __name__ == "__main__":
+# 	print(open_db())
 	
