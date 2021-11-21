@@ -1,5 +1,6 @@
 
-log/wishes.log
+log
 curent_link.txt
 pyvenv.cfg
 venv
+__pycache__
