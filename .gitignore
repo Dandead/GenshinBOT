@@ -4,3 +4,4 @@ curent_link.txt
 pyvenv.cfg
 venv
 __pycache__
+*.pyc
