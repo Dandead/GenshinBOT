@@ -1,5 +1,4 @@
 import requests
-import mysql.connector
 from database_usage import *
 import re
 import logging
@@ -12,7 +11,7 @@ logging.basicConfig(
 )
 
 
-def wish_data(link, wish="200", size="1", end="0", key_return=False, link_return=False):
+def wish_data(link, wish="200", size="1", end="0", key_return=False, link_return=False) -> list:
 	"""Returns link, JSON or authkey."""
 	authkey = re.search(r'(?<=authkey=)[^&#]+', str(link), flags=re.MULTILINE).group()
 	resp = f'{WISHES_LINK}{KEY_VER}&lang=ru&authkey={authkey}&gacha_type={wish}&size={size}&end_id={end}'
@@ -26,11 +25,8 @@ def wish_data(link, wish="200", size="1", end="0", key_return=False, link_return
 	return requests.get(resp).json()["data"]["list"]
 
 
-@db_connect_decorator
-def check_user(**kwargs) -> bool:
+def check_user(cursor, **kwargs) -> bool:
 	"""Must return bool of existing user in DB."""
-	connect = kwargs.pop("conn")
-	cursor = connect.cursor(dictionary=True)
 	cursor.execute(f'SELECT * FROM usr WHERE uid = "{kwargs["uid"]}"')
 	row = cursor.fetchone()
 	if row is not None:
@@ -39,32 +35,30 @@ def check_user(**kwargs) -> bool:
 		return False
 
 
-@db_connect_decorator
-def create_user(**w):
+def create_user(cursor, **w):
 	"""Must append user's info string into DB."""
 	lang = "en" if not w["lang"] else w["lang"][0:2]
 	authkey = "NULL" if not w["authkey"] else w["authkey"]
-	connect = w.pop("conn")
-	cursor = connect.cursor(dictionary=True)
-	cursor.execute(f'INSERT INTO `usr` VALUES ("{w["uid"]}","{lang}","{authkey}")')
+	cursor.execute(
+		f'INSERT INTO `usr` '
+		f'VALUES ("{w["uid"]}","{lang}","{authkey}")')
 	logging.info(f'User {w["uid"]} created in DB')
 
 
-@db_connect_decorator
-def remove_user(**w):
+def remove_user(cursor, **w):
 	"""Must remove user from DB"""
-	connect = w.pop("conn")
-	cursor = connect.cursor(dictionary=True)
-	cursor.execute(f'DELETE FROM usr WHERE uid = "{w["uid"]}"')
+	cursor.execute(
+		f'DELETE FROM usr '
+		f'WHERE uid = "{w["uid"]}"')
 	logging.info(f'User {w["uid"]} removed from DB')
 
 
-@db_connect_decorator
-def check_wish(**w) -> bool:
+def check_wish(cursor, **w) -> bool:
 	"""Must return bool of existing user's item in DB."""
-	connect = w.pop("conn")
-	cursor = connect.cursor(dictionary=True)
-	cursor.execute(f'SELECT * FROM `{w["gacha_type"]}` WHERE id = "{w["id"]}";')
+	cursor.execute(
+		f'SELECT * '
+		f'FROM `{w["gacha_id"]}` '
+		f'WHERE id = "{w["id"]}";')
 	row = cursor.fetchone()
 	if row:
 		return True
@@ -72,50 +66,61 @@ def check_wish(**w) -> bool:
 		return False
 
 
-@db_connect_decorator
-def append_wish(row, **w):
+def get_last_wish(cursor, uid, gacha_id):
+	"""Must return dict with user's last wish from table"""
+	cursor.execute(
+		f'SELECT id '
+		f'FROM `{gacha_id}` '
+		f'WHERE uid="{uid}" and id=('
+		f'	SELECT MAX(id) '
+		f'	FROM `{gacha_id}` '
+		f'	WHERE time=('
+		f'		SELECT MAX(time) '
+		f'		FROM `{gacha_id}`'
+		f'		)'
+		f'	);'
+	)
+	row = cursor.fetchone()
+	if row:
+		return row["id"]
+	else:
+		return None
+
+
+def append_wish(cursor, **item):
 	"""Must append row with new item to DB"""
-	connect = w.pop("conn")
-	cursor = connect.cursor(dictionary=True)
-	for item in row:
-		cursor.execute(item)
+	cursor.execute(
+		f'INSERT INTO `{item["gacha_id"]}` '
+		f'VALUES ("{item["uid"]}","{item["time"]}","{item["name"]}","{item["item_type"]}","{item["rank_type"]}","{item["id"]}");'
+	)
 
 
-def init(link, **kwargs):
-	data, authkey = wish_data(link, key_return=True)
-	user_exist: bool = check_user(**data[0])
-	if not user_exist:
-		create_user(authkey=authkey, **data[0])
-	for gacha_type in GACHA_TYPES:
-		end_id = ""
-		count_rows = 0
-		append_string = []
-		contin = True
-		while contin:
-			temporary: list = wish_data(link, gacha_type, "20", end_id)
-			if len(temporary) != 0:
-				if user_exist:
-					for item in temporary:
-						if check_wish(**item):
-							contin = False
-							break
-						else:
-							append_string.append(
-								f'INSERT INTO `{item["gacha_type"]}` VALUES ("{item["uid"]}","{item["time"]}","{item["name"]}","{item["item_type"]}","{item["rank_type"]}","{item["id"]}");')
-							count_rows += 1
-					end_id = temporary[len(temporary) - 1]["id"]
-				else:
-					for item in temporary:
-						append_string.append(
-							f'INSERT INTO `{item["gacha_type"]}` VALUES ("{item["uid"]}","{item["time"]}","{item["name"]}","{item["item_type"]}","{item["rank_type"]}","{item["id"]}");')
-						count_rows += 1
-					end_id = temporary[len(temporary) - 1]["id"]
-			else:
+def start_wishes_update(link: str, gacha_id: str, uid: str, cursor):
+	end_id = ""
+	proc = True
+	last_wish = get_last_wish(cursor, uid, gacha_id)
+	count = 0
+	while proc:
+		item_list: list = wish_data(link, gacha_id, "20", end_id)
+		if len(item_list) == 0:
+			break
+		for item in item_list:
+			if item["id"] == last_wish:
+				proc = False
 				break
-			append_wish(append_string)
-			append_string = []
-		logging.info(f'Added {count_rows} new rows to "{gacha_type}" table')
+			append_wish(cursor, gacha_id=gacha_id, **item)
+			count += 1
+		end_id = item_list[len(item_list)-1]["id"]
+	if count > 0:
+		logging.info(f'Added {count} new rows to "{gacha_id}" table for "{uid}"')
 
 
-if __name__ == "__main__":
-	init(str(input()))
+@db_connect_decorator
+def init(link, **kwargs):
+	cursor = kwargs.pop('conn').cursor(dictionary=True)
+	data, authkey = wish_data(link, key_return=True)
+	if not check_user(cursor, **data[0]):
+		create_user(cursor, authkey=authkey, **data[0])
+	for gacha_id in GACHA_TYPES:
+		start_wishes_update(link, gacha_id, data[0]["uid"], cursor)
+
