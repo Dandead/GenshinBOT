@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS `wishes`.`302` (
   CONSTRAINT `fore`
     FOREIGN KEY (`uid`)
     REFERENCES `wishes`.`usr` (`uid`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
