@@ -1,126 +1,144 @@
-import requests
-from database_usage import *
+# TODO:
+#  Add __del__ in User
+#  Add normal logging
+
+
+import aiohttp
+from decorators import *
 import re
 import logging
+import asyncio
+import requests
 
-WISHES_LINK = "https://hk4e-api-os.mihoyo.com/event/gacha_info/api/getGachaLog?"
-KEY_VER = "authkey_ver=1"
-GACHA_TYPES = ["100", "200", "301", "302"]
+
 logging.basicConfig(
-	filename='log/wishes.log', level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S'
+# 	filename='log/wishes.log',
+	level=logging.CRITICAL
+# 	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+# 	datefmt='%d-%b-%y %H:%M:%S'
 )
+# wish_logger = logging.getLogger(__name__)
+# wish_logger.setLevel(logging.INFO)
 
 
-def wish_data(link, wish="200", size="1", end="0", key_return=False, link_return=False) -> list:
-	"""Returns link, JSON or authkey."""
-	authkey = re.search(r'(?<=authkey=)[^&#]+', str(link), flags=re.MULTILINE).group()
-	resp = f'{WISHES_LINK}{KEY_VER}&lang=ru&authkey={authkey}&gacha_type={wish}&size={size}&end_id={end}'
-	message = requests.get(resp).json()["message"]
-	if key_return:
-		return [requests.get(resp).json()["data"]["list"], authkey]
-	elif link_return:
-		return [requests.get(resp).json()["data"]["list"], resp]
-	elif not authkey or message != "OK":
-		return None
-	return requests.get(resp).json()["data"]["list"]
-
-
-def check_user(cursor, **kwargs) -> bool:
-	"""Must return bool of existing user in DB."""
-	cursor.execute(f'SELECT * FROM usr WHERE uid = "{kwargs["uid"]}"')
-	row = cursor.fetchone()
-	if row is not None:
-		return True
-	else:
-		return False
-
-
-def create_user(cursor, **w):
-	"""Must append user's info string into DB."""
-	lang = "en" if not w["lang"] else w["lang"][0:2]
-	authkey = "NULL" if not w["authkey"] else w["authkey"]
-	cursor.execute(
-		f'INSERT INTO `usr` '
-		f'VALUES ("{w["uid"]}","{lang}","{authkey}")')
-	logging.info(f'User {w["uid"]} created in DB')
-
-
-def remove_user(cursor, **w):
-	"""Must remove user from DB"""
-	cursor.execute(
-		f'DELETE FROM usr '
-		f'WHERE uid = "{w["uid"]}"')
-	logging.info(f'User {w["uid"]} removed from DB')
-
-
-def check_wish(cursor, **w) -> bool:
-	"""Must return bool of existing user's item in DB."""
-	cursor.execute(
-		f'SELECT * '
-		f'FROM `{w["gacha_id"]}` '
-		f'WHERE id = "{w["id"]}";')
-	row = cursor.fetchone()
-	if row:
-		return True
-	else:
-		return False
-
-
-def get_last_wish(cursor, uid, gacha_id):
-	"""Must return dict with user's last wish from table"""
-	cursor.execute(
-		f'SELECT id '
-		f'FROM `{gacha_id}` '
-		f'WHERE uid="{uid}" and id=('
-		f'	SELECT MAX(id) '
-		f'	FROM `{gacha_id}` '
-		f'	WHERE time=('
-		f'		SELECT MAX(time) '
-		f'		FROM `{gacha_id}`'
-		f'		)'
-		f'	);'
-	)
-	row = cursor.fetchone()
-	if row:
-		return row["id"]
-	else:
-		return None
-
-
-def append_wish(cursor, **item):
-	"""Must append row with new item to DB"""
-	cursor.execute(
-		f'INSERT INTO `{item["gacha_id"]}` '
-		f'VALUES ("{item["uid"]}","{item["time"]}","{item["name"]}","{item["item_type"]}","{item["rank_type"]}","{item["id"]}");'
-	)
-
-
-def start_wishes_update(link: str, gacha_id: str, uid: str, cursor):
-	end_id = ""
-	proc = True
-	last_wish = get_last_wish(cursor, uid, gacha_id)
-	count = 0
-	while proc:
-		item_list: list = wish_data(link, gacha_id, "20", end_id)
-		if len(item_list) == 0:
-			break
-		for item in item_list:
-			if item["id"] == last_wish:
-				proc = False
+class User:
+	def __init__(self, link):
+		self.link = str(link)
+		self.gacha_ids = ["100", "200", "301", "302"]
+		self.authkey: str = re.search(r'(?<=authkey=)[^&#]+', self.link, flags=re.MULTILINE).group()
+		self.request_link_header = "https://hk4e-api-os.mihoyo.com/event/gacha_info/api/getGachaLog?authkey_ver=1"
+		self.set_user_info()
+		self.exist_before_assignment = self.__check_user()
+		print(f'User {self.user_id} inited')
+		
+	# def __await__(self):
+	# 	await self.start_update_db()
+		
+	def set_user_info(self):
+		if self.authkey:
+			self.request_link = f'{self.request_link_header}&lang=en&authkey={self.authkey}&gacha_type=200&size=1'
+			self.response = requests.get(self.request_link).json()
+		else:
+			raise ValueError
+		if self.response["message"] == "OK":
+			self.user_id = self.response["data"]["list"][0]["uid"]
+	
+	async def get_data(self, id_return=False, link_return: bool = None, gacha_id: str = None, end_id: str = None):
+		"""Must return lists of wishes data/only one list/link to json"""
+		if self.authkey and gacha_id:
+			self.request_link = f'{self.request_link_header}&lang=en&authkey={self.authkey}&gacha_type={gacha_id}&size=20&end_id={end_id}'
+		elif self.authkey and not gacha_id:
+			self.request_link = f'{self.request_link_header}&lang=en&authkey={self.authkey}&gacha_type=200&size=1'
+		else:
+			raise ValueError
+		if link_return:
+			return self.request_link
+		async with aiohttp.ClientSession().get(self.request_link) as resp:
+			self.response = await resp.json()
+		if self.response["message"] == "OK":
+			return self.response["data"]["list"]
+		else:
+			raise ValueError
+	
+	@db_connect_decorator
+	def __check_user(self, **kwargs) -> bool:
+		"""Must return bool of existing user in DB."""
+		cursor = kwargs.pop("conn").cursor(dictionary=True)
+		cursor.execute(f'SELECT * FROM usr WHERE uid = "{self.user_id}"')
+		row = cursor.fetchone()
+		if row is not None:
+			return True
+		else:
+			return False
+	
+	@db_connect_decorator
+	def __create_user(self, **kwargs):
+		"""Must append user's info string into DB."""
+		cursor = kwargs.pop("conn").cursor(dictionary=True)
+		cursor.execute(
+			f'INSERT INTO `usr` '
+			f'VALUES ("{self.user_id}","en","{self.authkey}")')
+		print(f'User {self.user_id} created in DB')
+	
+	@db_connect_decorator
+	def __remove_user(self, **kwargs):
+		"""Must remove user from DB"""
+		cursor = kwargs.pop("conn").cursor(dictionary=True)
+		cursor.execute(
+			f'DELETE FROM `usr` '
+			f'WHERE uid = "{self.user_id}"')
+		print(f'User {self.user_id} removed from DB')
+	
+	@db_connect_decorator
+	def __get_last_wish(self, gacha_id, **kwargs):
+		"""Must return dict with user's last wish from table"""
+		cursor = kwargs.pop("conn").cursor(dictionary=True)
+		cursor.execute(
+			f'SELECT MAX(id) '
+			f'FROM `{gacha_id}` '
+			f'WHERE uid="{self.user_id}"'
+		)
+		row = cursor.fetchone()
+		if row["MAX(id)"]:
+			return row["MAX(id)"]
+		else:
+			return None
+	
+	@db_connect_decorator
+	def __append_wish(self, items, gacha_id, **kwargs):
+		"""Must append row with new item to DB"""
+		cursor = kwargs.pop("conn").cursor(dictionary=True)
+		if len(items) == 0:
+			return
+		for item in items:
+			cursor.execute(
+				f'INSERT INTO `{gacha_id}` '
+				f'VALUES ("{self.user_id}","{item["time"]}","{item["name"]}","{item["item_type"]}","{item["rank_type"]}","{item["id"]}");'
+			)
+	
+	async def __wish_iterator(self, gacha_id):
+		print(f'{self.user_id} iter')
+		end_id = ""
+		count = 0
+		last_item = self.__get_last_wish(gacha_id) if self.exist_before_assignment else None
+		while True:
+			gacha_response: list = await self.get_data(gacha_id=gacha_id, end_id=end_id)
+			if len(gacha_response) == 0:
 				break
-			append_wish(cursor, gacha_id=gacha_id, **item)
-			count += 1
-		end_id = item_list[len(item_list)-1]["id"]
-	if count > 0:
-		logging.info(f'Added {count} new rows to "{gacha_id}" table for "{uid}"')
-
-
-@db_connect_decorator
-def init(link, **kwargs):
-	cursor = kwargs.pop('conn').cursor(dictionary=True)
-	data, authkey = wish_data(link, key_return=True)
-	if not check_user(cursor, **data[0]):
-		create_user(cursor, authkey=authkey, **data[0])
-	for gacha_id in GACHA_TYPES:
-		start_wishes_update(link, gacha_id, data[0]["uid"], cursor)
-
+			if last_item:
+				self.__append_wish([item for item in gacha_response if last_item < item["id"]], gacha_id)
+				if last_item in [item["id"] for item in gacha_response]:
+					break
+			else:
+				self.__append_wish(gacha_response, gacha_id)
+				count += len(gacha_response)
+			end_id = gacha_response[len(gacha_response) - 1]["id"]
+		print(f'Added {count} new rows to "{gacha_id}" table for "{self.user_id}"')
+	
+	async def start_update_db(self):
+		if not self.exist_before_assignment:
+			self.__create_user()
+		self.coros = []
+		for gacha_id in self.gacha_ids:
+			self.coros.append(self.__wish_iterator(gacha_id))
+		await asyncio.gather(*self.coros)

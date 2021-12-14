@@ -1,6 +1,6 @@
-
 log
-curent_link.txt
+.idea
+config
 pyvenv.cfg
 venv
 __pycache__
