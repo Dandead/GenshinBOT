@@ -1,4 +1,5 @@
 import mysql.connector
+from main import GLOBAL_LOOP
 
 
 DATA = {
@@ -25,3 +26,18 @@ def db_connect_decorator(func):
 	return decorate
 
 
+def duplicates_protection(func):
+	"""Decorator, that should protect event loop from duplicates"""
+	def decorator(md5, *args, **kwargs):
+		try:
+			if md5 in GLOBAL_LOOP:
+				return "Please, wait until this user is processed."
+			print(md5)
+			GLOBAL_LOOP.append(md5)
+			result = func(*args, **kwargs)
+			return result
+		except:
+			raise ValueError
+		finally:
+			GLOBAL_LOOP.pop(md5)
+	return decorator

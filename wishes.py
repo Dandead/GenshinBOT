@@ -21,8 +21,9 @@ logging.basicConfig(
 # wish_logger.setLevel(logging.INFO)
 
 
+@duplicates_protection
 class User:
-	def __init__(self, link):
+	def __init__(self, link: str):
 		self.link = str(link)
 		self.gacha_ids = ["100", "200", "301", "302"]
 		self.authkey: str = re.search(r'(?<=authkey=)[^&#]+', self.link, flags=re.MULTILINE).group()
