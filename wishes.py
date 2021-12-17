@@ -1,14 +1,16 @@
-import aiohttp
+import aiohttp.client
 from decorators import *
 import re
 import logging
 import asyncio
 import requests
 import time
+import exceptions
 
 # TODO:
 #  Add __del__ in User
 #  Add normal logging
+
 
 
 logging.basicConfig(
@@ -23,26 +25,26 @@ logging.basicConfig(
 
 @duplicates_protection
 class User:
-	def __init__(self, md5: str, link: str):
+	def __init__(self, shahash: str, link: str):
 		self.link = str(link)
-		self.md5 = md5
+		self.shahash = shahash
 		self.gacha_ids = ["100", "200", "301", "302"]
-		self.authkey: str = re.search(r'(?<=authkey=)[^&#]+', self.link, flags=re.MULTILINE).group()
 		self.request_link_header = "https://hk4e-api-os.mihoyo.com/event/gacha_info/api/getGachaLog?authkey_ver=1"
 		self.set_user_info()
 		self.exist_before_assignment = self.__check_user()
 		print(time.asctime()+f' User {self.user_id} inited')
 		
 	def set_user_info(self):
-		if self.authkey:
-			self.request_link = f'{self.request_link_header}&lang=en&authkey={self.authkey}&gacha_type=200&size=1'
-			self.response = requests.get(self.request_link).json()
-		else:
-			raise ValueError("Not authkey")
+		try:
+			self.authkey: str = re.search(r'(?<=authkey=)[^&#]+', self.link, flags=re.MULTILINE).group()
+		except AttributeError:
+			raise exceptions.AuthKeyMissedException
+		self.request_link = f'{self.request_link_header}&lang=en&authkey={self.authkey}&gacha_type=200&size=1'
+		self.response = requests.get(self.request_link).json()
 		if self.response["message"] == "OK":
 			self.user_id = self.response["data"]["list"][0]["uid"]
 		else:
-			raise ValueError('set_user_info('+self.response["message"]+')')
+			raise exceptions.AuthKeyInvalidException(self.response["message"])
 	
 	async def get_data(self, id_return=False, link_return: bool = None, gacha_id: str = None, end_id: str = None):
 		"""Must return lists of wishes data/only one list/link to json"""
@@ -139,10 +141,6 @@ class User:
 	async def start_update_db(self):
 		if not self.exist_before_assignment:
 			self.__create_user()
-		self.coros = []
 		for gacha_id in self.gacha_ids:
-			self.coros.append(self.__wish_iterator(gacha_id))
-		await asyncio.gather(*self.coros)
-		GLOBAL_LOOP.pop(GLOBAL_LOOP.index(self.md5))
-		# print("pop "+self.md5+"\n")
-		# print(GLOBAL_LOOP)
+			asyncio.ensure_future(self.__wish_iterator(gacha_id))
+		GLOBAL_LOOP.pop(GLOBAL_LOOP.index(self.shahash))

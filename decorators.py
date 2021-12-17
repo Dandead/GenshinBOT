@@ -1,5 +1,6 @@
 import mysql.connector
 import time
+import hashlib
 
 GLOBAL_LOOP = []
 
@@ -30,19 +31,19 @@ def db_connect_decorator(func):
 
 def duplicates_protection(func):
 	"""Decorator, that should protect event loop from duplicates"""
-	def decorator(md5, *args, **kwargs):
+	def decorator(*args, **kwargs):
 		try:
-			if md5 in GLOBAL_LOOP:
+			shahash = hashlib.sha3_224(args[0].encode()).hexdigest()
+			if shahash in GLOBAL_LOOP:
 				print(time.asctime()+" Please, wait until this user is processed.")
 				return None
-			# print(md5)
-			GLOBAL_LOOP.append(md5)
+			# print(shahash)
+			GLOBAL_LOOP.append(shahash)
 			# print(GLOBAL_LOOP)
-			result = func(md5, *args, **kwargs)
+			result = func(shahash, *args, **kwargs)
 			return result
 		except Exception as e:
 			print(time.asctime()+' Error: '+str(e))
-			GLOBAL_LOOP.pop(GLOBAL_LOOP.index(md5))
-			# print(GLOBAL_LOOP)
+			GLOBAL_LOOP.pop(GLOBAL_LOOP.index(shahash))
 			return None
 	return decorator
