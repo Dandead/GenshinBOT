@@ -1,26 +1,22 @@
 import mysql.connector
 import time
 import hashlib
+import configparser
 
 GLOBAL_LOOP = []
-
-
-DATA = {
-	"host": "localhost",
-	"database": "wishes",
-	"user": "genshin",
-	"password": "genshinpass"
-}
 
 
 def db_connect_decorator(func):
 	"""Decorator for connection to MySQL database"""
 	def decorate(*args, **kwargs):
 		try:
-			connect = mysql.connector.connect(**DATA)
+			pars = configparser.ConfigParser()
+			pars.read("./config/databases.ini")
+			data = dict(pars.items('GENSHIN_USERS'))
+			connect = mysql.connector.connect(**data)
 			res = func(*args, conn=connect, **kwargs)
 		except mysql.connector.Error as e:
-			print(e)
+			raise e
 		else:
 			return res
 		finally:
@@ -29,21 +25,13 @@ def db_connect_decorator(func):
 	return decorate
 
 
-def duplicates_protection(func):
-	"""Decorator, that should protect event loop from duplicates"""
+def errors_handler(func):
+	"""Errors handler"""
 	def decorator(*args, **kwargs):
 		try:
-			shahash = hashlib.sha3_224(args[0].encode()).hexdigest()
-			if shahash in GLOBAL_LOOP:
-				print(time.asctime()+" Please, wait until this user is processed.")
-				return None
-			# print(shahash)
-			GLOBAL_LOOP.append(shahash)
-			# print(GLOBAL_LOOP)
-			result = func(shahash, *args, **kwargs)
+			result = func(*args, **kwargs)
 			return result
 		except Exception as e:
 			print(time.asctime()+' Error: '+str(e))
-			GLOBAL_LOOP.pop(GLOBAL_LOOP.index(shahash))
 			return None
 	return decorator

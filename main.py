@@ -1,7 +1,9 @@
 from wishes import User
 import asyncio
+import telegram
 import time
 import aiofiles
+from decorators import GLOBAL_LOOP
 
 
 async def main():
@@ -15,7 +17,10 @@ async def main():
 				new = User(line)
 				if new:
 					asyncio.ensure_future(new.start_update_db())
-		await asyncio.sleep(10)
+					# await new.start_update_db()
+				print(GLOBAL_LOOP)
+				await asyncio.sleep(2)
+		# await asyncio.sleep(15)
 		print(time.asctime()+" New iteration")
 
 asyncio.run(main())
