@@ -144,7 +144,7 @@ class User:
 		self.shahash = hashlib.sha3_224(self.authkey.encode()).hexdigest()
 		if self.shahash in GLOBAL_LOOP:
 			print(123)
-			raise exceptions.AuthKeyInvalidException
+			raise exceptions.DuplicateUserInLoop()
 		GLOBAL_LOOP.append(self.shahash)
 		try:
 			if not self.exist_before_assignment:
