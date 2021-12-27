@@ -25,8 +25,8 @@ logging.basicConfig(
 # wish_logger.setLevel(logging.INFO)
 
 
+@dc.errors_handler
 class User:
-	@dc.errors_handler
 	def __init__(self, link: str):
 		self.link = str(link)
 		self.gacha_ids = ["100", "200", "301", "302"]
@@ -49,7 +49,6 @@ class User:
 	
 	async def get_data(self, link_return: bool = None, gacha_id: str = "200", end_id: str = None):
 		"""Must return lists of wishes data/only one list/link to json"""
-		# raise ValueError
 		self.request_link = f'{self.request_link_header}&lang=en&authkey={self.authkey}&gacha_type={gacha_id}&size=20&end_id={end_id}'
 		if link_return:
 			return self.request_link
@@ -139,19 +138,19 @@ class User:
 				count += len(gacha_response)
 			end_id = gacha_response[len(gacha_response) - 1]["id"]
 		print(time.asctime()+f' Added {count} new rows to "{gacha_id}" table for "{self.user_id}"')
-		
-	@dc.async_errors_handler
+	
 	async def start_update_db(self):
 		"""This method should start a DB update for current user"""
 		self.shahash = hashlib.sha3_224(self.authkey.encode()).hexdigest()
 		if self.shahash in GLOBAL_LOOP:
 			print(123)
-			raise exceptions.DuplicateUserInLoop
+			raise exceptions.DuplicateUserInLoop()
 		GLOBAL_LOOP.append(self.shahash)
 		try:
 			if not self.exist_before_assignment:
 				self.__create_user()
 			for gacha_id in self.gacha_ids:
+				# asyncio.ensure_future(self.__wish_iterator(gacha_id))
 				await self.__wish_iterator(gacha_id)
 			print(f'{self.user_id} removed')
 			GLOBAL_LOOP.pop(GLOBAL_LOOP.index(self.shahash))

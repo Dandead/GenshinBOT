@@ -33,18 +33,5 @@ def errors_handler(func):
 			return result
 		except Exception as e:
 			print(time.asctime()+' Error: '+str(e))
-			raise e
-			# return None
-	return decorator
-
-
-def async_errors_handler(func):
-	"""Async errors handler"""
-	async def decorator(*args, **kwargs):
-		try:
-			return await func(*args, **kwargs)
-		except Exception as e:
-			print(time.asctime() + ' Error: ' + str(e))
-			raise e
-			# return None
+			return None
 	return decorator
