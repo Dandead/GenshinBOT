@@ -1,8 +1,6 @@
-from aiogram import Dispatcher, types, filters
+from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import State, StatesGroup
 from emoji import emojize
-from src import exceptions, user
 
 
 def register_handlers_base(dp: Dispatcher):
@@ -20,8 +18,4 @@ async def cmd_start(message: types.Message, state: FSMContext):
 	await message.answer(
 		'Привет!\nЯ бот для обработки молитв пользователей в игре Genshin Impact\nЕсли у тебя нет ключа, то входи по ссылке на молитвы!',
 		reply_markup=buttons_keyboard)
-
-
-async def send_to_user(string: str):
-	await types.message.Message.
 

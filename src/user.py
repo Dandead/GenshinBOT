@@ -1,5 +1,5 @@
 from src import decorators as dc, exceptions, database as db, parser
-from src.bot.handlers.
+from collections import Counter
 import re
 import requests
 import time
@@ -31,7 +31,7 @@ class User:
 	
 	async def __wish_iterator(self, gacha_id):
 		end_id = ""
-		count = 0
+		dict_of_updates = Counter()
 		last_item = db.get_last_wish(gacha_id, user_id=self.user_id) if self.exist_before_assignment else None
 		while True:
 			gacha_response: list = await parser.get_data(self.authkey, gacha_id, end_id)
@@ -39,30 +39,33 @@ class User:
 				break
 			if last_item:
 				items = [item for item in gacha_response if last_item < item["id"]]
-				db.append_wish(items, gacha_id, user_id=self.user_id)
-				count += len(items)
+				dict_of_updates.update(db.append_wish(items, user_id=self.user_id))
 				if last_item in [item["id"] for item in gacha_response]:
 					break
 			else:
-				db.append_wish(gacha_response, gacha_id, user_id=self.user_id)
-				count += len(gacha_response)
+				dict_of_updates.update(db.append_wish(gacha_response, user_id=self.user_id))
 			end_id = gacha_response[len(gacha_response) - 1]["id"]
-		print(time.asctime()+f' Added {count} new rows to "{gacha_id}" table for "{self.user_id}"')
+		return dict_of_updates
 		
 	@dc.async_errors_handler
-	async def start_update_db(self):
+	async def start_update_db(self) -> dict:
 		"""This method should start a DB update for current user"""
-		# self.shahash = hashlib.sha3_224(self.user_id.encode()).hexdigest()
 		if self.user_id in GLOBAL_LOOP:
 			raise exceptions.DuplicateUserInLoop
 		GLOBAL_LOOP.append(self.user_id)
+		counter = Counter()
+		start = {"100": 0, "200": 0, "301": 0, "302": 0, "400": 0}
+		final = {}
+		counter.update(start)
 		try:
 			if not self.exist_before_assignment:
 				db.create_user(user_id=self.user_id)
 			for gacha_id in gacha_ids:
-				await self.__wish_iterator(gacha_id)
+				counter.update(await self.__wish_iterator(gacha_id))
 			print(f'{self.user_id} removed')
 			GLOBAL_LOOP.pop(GLOBAL_LOOP.index(self.user_id))
+			final.update(counter)
+			return final
 		except Exception as e:
 			print(f'{self.user_id} removed with error')
 			GLOBAL_LOOP.pop(GLOBAL_LOOP.index(self.user_id))

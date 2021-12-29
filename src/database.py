@@ -1,4 +1,5 @@
 import src.decorators as dc
+from collections import Counter
 import time
 
 
@@ -51,18 +52,18 @@ def get_last_wish(gacha_id, **kwargs):
 
 
 @dc.wishes_db_conn
-def append_wish(items, gacha_id, **kwargs):
+def append_wish(items, **kwargs) -> dict:
 	"""Must append row with new item to DB"""
+	dict_of_inserts = Counter()
 	cursor = kwargs.pop("conn").cursor(dictionary=True)
-	if len(items) == 0:
-		return
 	for item in items:
 		try:
 			cursor.execute(
-				f'INSERT INTO `{gacha_id}` '
+				f'INSERT INTO `{item.get("gacha_type")}` '
 				f'VALUES ("{kwargs.get("user_id")}","{item["time"]}","{item["name"]}","{item["item_type"]}","{item["rank_type"]}","{item["id"]}");'
 			)
+			dict_of_inserts.update({item.get("gacha_type"): 1})
 		except Exception as e:
 			print(f'database.append_wish method: {e}')
-			return None
-		
+			raise e
+	return dict_of_inserts

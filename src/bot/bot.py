@@ -18,8 +18,8 @@ async def main():
 	config.read('./config/bot.ini')
 	bot = Bot(**dict(config.items('telegram')))
 	dp = Dispatcher(bot, storage=MemoryStorage())
-	wh.register_handlers_wishes(dp)
 	bh.register_handlers_base(dp)
+	wh.register_handlers_wishes(dp)
 	
 	await set_base_commands(bot)
 	await dp.skip_updates()

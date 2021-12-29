@@ -11,4 +11,4 @@ logging.basicConfig(
 # 	datefmt='%d-%b-%y %H:%M:%S'
 
 
-asyncio.run(bot())
+asyncio.run(bot.main())
