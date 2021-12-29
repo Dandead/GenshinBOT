@@ -1,13 +1,10 @@
 import mysql.connector
 import time
-import hashlib
 import configparser
 
-GLOBAL_LOOP = []
 
-
-def db_connect_decorator(func):
-	"""Decorator for connection to MySQL database"""
+def wishes_db_conn(func):
+	"""Decorator for connection to "wishes" database"""
 	def decorate(*args, **kwargs):
 		try:
 			pars = configparser.ConfigParser()
@@ -32,6 +29,7 @@ def errors_handler(func):
 			result = func(*args, **kwargs)
 			return result
 		except Exception as e:
+			
 			print(time.asctime()+' Error: '+str(e))
 			raise e
 			# return None
