@@ -8,7 +8,7 @@ def wishes_db_conn(func):
 	def decorate(*args, **kwargs):
 		try:
 			pars = configparser.ConfigParser()
-			pars.read("./config/databases.ini")
+			pars.read("config/databases.ini")
 			data = dict(pars.items('GENSHIN_USERS'))
 			connect = mysql.connector.connect(**data)
 			res = func(*args, conn=connect, **kwargs)

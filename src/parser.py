@@ -8,7 +8,7 @@ request_link_header = "https://hk4e-api-os.mihoyo.com/event/gacha_info/api/getGa
 
 async def get_data(authkey: str, gacha_id: str, end_id: str, link_return: bool = None) -> Union[list, str]:
 	"""Must return lists of wishes data/only one list/link to json"""
-	request_link = f'{request_link_header}&lang=en&authkey={authkey}&gacha_type={gacha_id}&size=20&end_id={end_id}'
+	request_link = f'{request_link_header}&lang=ru&authkey={authkey}&gacha_type={gacha_id}&size=20&end_id={end_id}'
 	if link_return:
 		return request_link
 	async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=False)).get(request_link) as resp:
