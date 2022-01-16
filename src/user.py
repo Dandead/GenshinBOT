@@ -1,3 +1,5 @@
+import logging
+
 from src import decorators as dc, exceptions, database as db, parser
 from collections import Counter
 import re
@@ -5,14 +7,15 @@ import requests
 import time
 
 GLOBAL_LOOP: list = []
+logger = logging.getLogger("bot")
 
 
 class User:
 	@dc.errors_handler
-	def __init__(self, link: str = None, uid: str = None):
-		if uid:
-			self.user_id = uid
-		elif link:
+	def __init__(self, link: str = None, uid: str = None, authkey: str = None):
+		self.user_id = uid
+		self.authkey = authkey
+		if link:
 			self.link = str(link)
 			try:
 				self.authkey: str = re.search(r'(?<=authkey=)[^&#]+', self.link, flags=re.MULTILINE).group()
@@ -26,7 +29,7 @@ class User:
 				raise exceptions.AuthKeyInvalidException(self.__response["message"])
 		self.exist_before_assignment = db.check_user(self.user_id)
 		self.gacha_ids = ["100", "200", "301", "302", "400"]
-		print(time.asctime()+f' User {self.user_id} inited')
+		logger.info(f' User {self.user_id} inited')
 		
 	@dc.errors_handler
 	def delete_user(self):
@@ -36,7 +39,6 @@ class User:
 		end_id = ""
 		dict_of_updates = Counter()
 		last_item = db.get_last_wish(gacha_id, self.user_id) if self.exist_before_assignment else None
-		print(last_item)
 		while True:
 			if gacha_id == "400":
 				gacha_response: list = await parser.get_data(self.authkey, "301", end_id)
@@ -62,16 +64,13 @@ class User:
 		return dict_of_updates
 		
 	@dc.async_errors_handler
-	async def start_update_db(self, authkey: str = None) -> dict:
+	async def start_update_db(self) -> dict:
 		"""This method should start a DB update for current user"""
 		if self.user_id in GLOBAL_LOOP:
 			raise exceptions.DuplicateUserInLoop
 		GLOBAL_LOOP.append(self.user_id)
 		if not self.authkey:
-			if authkey:
-				self.authkey = authkey
-			else:
-				raise exceptions.AuthKeyMissedException
+			raise exceptions.AuthKeyMissedException
 		counter = Counter()
 		start = {"100": 0, "200": 0, "301": 0, "302": 0, "400": 0}
 		final = {}
@@ -81,12 +80,12 @@ class User:
 				db.create_user(self.user_id)
 			for gacha_id in self.gacha_ids:
 				counter.update(await self.__wish_iterator(gacha_id))
-			print(f'{self.user_id} removed')
+			logger.info(f'{self.user_id} removed')
 			GLOBAL_LOOP.pop(GLOBAL_LOOP.index(self.user_id))
 			final.update(counter)
 			return final
 		except Exception as e:
-			print(f'{self.user_id} removed with error')
+			logger.info(f'{self.user_id} removed with error')
 			GLOBAL_LOOP.pop(GLOBAL_LOOP.index(self.user_id))
 			raise e
 			

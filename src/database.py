@@ -1,6 +1,10 @@
+import logging
+
 import src.decorators as dc
 from collections import Counter
 import time
+
+logger = logging.getLogger("databases")
 
 
 @dc.wishes_db_conn
@@ -22,7 +26,7 @@ def create_user(user_id: str, **kwargs):
 	cursor.execute(
 		f'INSERT INTO `usr` '
 		f'VALUES ("{user_id}","en","{kwargs.get("authkey")}")')
-	print(f'User {user_id} created in DB')
+	logger.info(f'User {user_id} created in DB')
 
 
 @dc.wishes_db_conn
@@ -32,7 +36,7 @@ def remove_user(**kwargs):
 	cursor.execute(
 		f'DELETE FROM `usr` '
 		f'WHERE uid = "{kwargs.get("user_id")}"')
-	print(time.asctime() + f' User {kwargs.get("user_id")} removed from DB')
+	logger.info(f' User {kwargs.get("user_id")} removed from DB')
 
 
 @dc.wishes_db_conn
@@ -64,13 +68,12 @@ def append_wish(items, **kwargs) -> dict:
 			)
 			dict_of_inserts.update({item.get("gacha_type"): 1})
 		except Exception as e:
-			print(f'database.append_wish method: {e}')
 			raise e
 	return dict_of_inserts
 
 
 @dc.wishes_db_conn
-def get_legendary_items(user_id, gacha_id, **kwargs):
+def get_legendary_items(user_id, gacha_id, **kwargs) -> dict:
 	"""Return list of legendary items with banners id"""
 	cursor = kwargs.pop("conn").cursor(dictionary=True)
 	try:
@@ -87,15 +90,11 @@ def get_legendary_items(user_id, gacha_id, **kwargs):
 		to_return = cursor.fetchall()
 		return to_return
 	except Exception as e:
-		print(f'database.get_legendary_items method: {e}')
+		logger.critical(f'database.get_legendary_items method: {e}')
 		raise e
 	
 	
 def get_guarantee():
 	pass
 
-
-if __name__ == '__main__':
-	# print(get_last_wish("301"))
-	print(get_legendary_items('715407122', '301'))
 	

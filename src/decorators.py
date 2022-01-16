@@ -1,6 +1,10 @@
+import logging
 import mysql.connector
 import time
 import configparser
+
+
+logger = logging.getLogger("databases")
 
 
 def wishes_db_conn(func):
@@ -13,6 +17,7 @@ def wishes_db_conn(func):
 			connect = mysql.connector.connect(**data)
 			res = func(*args, conn=connect, **kwargs)
 		except mysql.connector.Error as e:
+			logger.critical(e)
 			raise e
 		else:
 			return res
@@ -29,10 +34,8 @@ def errors_handler(func):
 			result = func(*args, **kwargs)
 			return result
 		except Exception as e:
-			
-			print(time.asctime()+' Error: '+str(e))
+			logging.error(e)
 			raise e
-			# return None
 	return decorator
 
 
@@ -42,7 +45,6 @@ def async_errors_handler(func):
 		try:
 			return await func(*args, **kwargs)
 		except Exception as e:
-			print(time.asctime() + ' Error: ' + str(e))
+			logging.error(e)
 			raise e
-			# return None
 	return decorator

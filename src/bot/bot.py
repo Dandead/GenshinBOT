@@ -1,8 +1,11 @@
+import asyncio
+import configparser
+import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.redis import RedisStorage2
-from src.bot.handlers import wishes_handler as wh, base_handlers as bh
-import configparser
-import asyncio
+from src.bot.handlers import base_handlers as bh, wishes_handler as wh
+
+logger = logging.getLogger("bot")
 
 
 async def set_base_commands(bot: Bot):
@@ -15,6 +18,7 @@ async def set_base_commands(bot: Bot):
 
 async def main():
 	try:
+		logger.error("Starting bot")
 		config = configparser.ConfigParser()
 		config.read('config/bot.ini')
 		bot = Bot(**dict(config.items('telegram')))
@@ -30,6 +34,11 @@ async def main():
 	finally:
 		await dp.storage.close()
 		await dp.storage.wait_closed()
+		await bot.session.close()
+		logger.error("Closing bot")
 
 if __name__ == "__main__":
-	asyncio.run(main())
+	try:
+		asyncio.run(main())
+	except (KeyboardInterrupt, SystemExit):
+		logger.error("Bot stopped!")

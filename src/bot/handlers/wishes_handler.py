@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import Dispatcher, types, filters
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -8,6 +10,7 @@ from emoji import emojize
 import re
 
 
+logger = logging.getLogger("bot")
 types_of_wishes = {
 				"100": "Молитва новичка",
 				"200": "Стандартная молитва",
@@ -68,9 +71,10 @@ async def handling_link_from_user(message: types.Message, state: FSMContext):
 		await Stages.waiting_for_option.set()
 	except (exceptions.AuthKeyInvalidException, exceptions.AuthKeyMissedException) as e:
 		await message.answer(e.return_to_user())
-		raise e(message.chat.id)
+		logger.warning(message.chat.id)
+		return
 	except Exception as e:
-		print(e)
+		logger.error(e)
 		await message.answer("Что-то пошло не так!\nСвяжитесь с разработчиком!")
 		return
 
@@ -86,17 +90,17 @@ async def waiting_for_options(message: types.Message, state: FSMContext):
 			if not authkey:
 				await message.answer("Для обновления молитв зайдите, используя ссылку!\nДля возврата вначало /cancel")
 				return
-			updated_data: dict = await genshin_user.start_update_db(authkey)
-			# print(updated_data)
+			instance = user.User(uid=genshin_user, authkey=authkey)
+			updated_data: dict = await instance.start_update_db()
 			for key, value in updated_data.items():
 				return_to_user.append(f'<b><i><u>{types_of_wishes[key]}</u></i></b>: было добавлено {md.hcode(value)} новых молитв\n')
 			await message.answer(''.join(return_to_user), parse_mode=types.ParseMode.HTML)
 			return
 		except exceptions.DuplicateUserInLoop as e:
 			await message.answer("Пожалуйста, подождите пока этот пользователь будет обработан!")
-			raise e(message.chat.id)
+			logger.warning("Duplicate user in writing loop", extra={"user": "message.chat.id"})
 		except Exception as e:
-			print(e)
+			logger.error(e, extra={"user": "message.chat.id"})
 			await message.answer("Что-то пошло не так!\nСвяжитесь с разработчиком!")
 	elif message.text == kb.Keyboards.waiting_for_options_kb(1):
 		await message.answer("Учти, что на серверах игры хранятся данные о молитавах только за последние <u>6</u> месяцев", parse_mode=types.ParseMode.HTML)
@@ -113,25 +117,31 @@ async def waiting_for_options(message: types.Message, state: FSMContext):
 	
 	
 async def choosing_type_of_data(message: types.Message, state: FSMContext):
-	if message.text == kb.Keyboards.choosing_type_of_data_kb(0):
+	if message.text == kb.Keyboards.choosing_type_of_data_kb(0):		# Garant
 		await message.answer('В разработке...')
 		return
-	elif message.text == kb.Keyboards.choosing_type_of_data_kb(1):
+	elif message.text == kb.Keyboards.choosing_type_of_data_kb(1):		# all legendary items
 		state_data = await state.get_data()
 		genshin_user = state_data.get("genshin_user")
 		return_to_user = {}
 		response = []
 		for key, value in types_of_wishes.items():
 			temp = db.get_legendary_items(genshin_user, key)
-			return_to_user[key] = temp
-		for key, value in return_to_user.items():
-			response.append(f'<b><i><u>{types_of_wishes[key]}</u></i></b>:')
-			for item in value:
-				if item.get("garant") is None:
-					response.append(f'<b>{item.get("name")}</b> - на <u>{item.get("row_num")}</u> крутке')
-				else:
-					response.append(f'<b>{item.get("name")}</b> - на <u>{item.get("garant")}</u> крутке')
-		await message.answer("\n".join(response), parse_mode=types.ParseMode.HTML)
+			if temp:
+				return_to_user[key] = temp
+			else:
+				pass
+		if return_to_user:
+			for key, value in return_to_user.items():
+				response.append(f'<b><i><u>{types_of_wishes[key]}</u></i></b>:')
+				for item in value:
+					if item.get("garant") is None:
+						response.append(f'<b>{item.get("name")}</b> - на <u>{item.get("row_num")}</u> крутке')
+					else:
+						response.append(f'<b>{item.get("name")}</b> - на <u>{item.get("garant")}</u> крутке')
+			await message.answer("\n".join(response), parse_mode=types.ParseMode.HTML)
+		else:
+			await message.answer("На данный момент у тебя нет легендарок")
 	elif message.text == kb.Keyboards.choosing_type_of_data_kb(2):
 		await message.answer("С чего начнем?", reply_markup=kb.Keyboards.waiting_for_options_kb())
 		await Stages.waiting_for_option.set()

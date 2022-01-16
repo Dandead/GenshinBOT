@@ -1,5 +1,4 @@
 from typing import Union
-
 import aiohttp
 from src import exceptions
 
