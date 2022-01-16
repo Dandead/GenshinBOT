@@ -1,5 +1,4 @@
 import logging
-
 from aiogram import Dispatcher, types, filters
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -10,7 +9,7 @@ from emoji import emojize
 import re
 
 
-logger = logging.getLogger("bot")
+logger = logging.getLogger(__name__)
 types_of_wishes = {
 				"100": "Молитва новичка",
 				"200": "Стандартная молитва",
@@ -26,6 +25,7 @@ def register_handlers_wishes(dp: Dispatcher):
 	dp.register_message_handler(handling_link_from_user, state=Stages.waiting_for_link)
 	dp.register_message_handler(waiting_for_options, state=Stages.waiting_for_option)
 	dp.register_message_handler(choosing_type_of_data, state=Stages.choosing_type_of_data)
+	dp.register_message_handler(foo, state="*")
 
 
 class Stages(StatesGroup):
@@ -33,6 +33,18 @@ class Stages(StatesGroup):
 	waiting_for_key = State()
 	waiting_for_option = State()
 	choosing_type_of_data = State()
+
+async def foo(message: types.Message, state: FSMContext):
+	await state.finish()
+	start_buttons = [
+		emojize("Ключ :key:"),
+		emojize("Ссылка :crystal_ball:")
+	]
+	buttons_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+	buttons_keyboard.add(*start_buttons)
+	await message.answer(
+		'Привет!\nЯ бот для обработки молитв пользователей в игре Genshin Impact\nЕсли у тебя нет ключа, то входи по ссылке на молитвы!',
+		reply_markup=buttons_keyboard)
 
 
 async def get_key_from_user(message: types.Message, state: FSMContext):
@@ -117,31 +129,30 @@ async def waiting_for_options(message: types.Message, state: FSMContext):
 	
 	
 async def choosing_type_of_data(message: types.Message, state: FSMContext):
-	if message.text == kb.Keyboards.choosing_type_of_data_kb(0):		# Garant
-		await message.answer('В разработке...')
-		return
+	if message.text == kb.Keyboards.choosing_type_of_data_kb(0):
+		state_data = await state.get_data()
+		genshin_user = state_data.get("genshin_user")
+		temp = db.get_guarantee(genshin_user)
+		print(temp)
+		answer = []
+		for key, value in temp.items():
+			answer.append(
+				f'<b><i><u>{types_of_wishes[key]}</u></i></b>: {temp.get(key)} из 90\nДо гаранта осталось <u>{90 - int(temp.get(key))}</u>\n'
+			)
+		await message.answer("".join(answer), parse_mode=types.ParseMode.HTML)
 	elif message.text == kb.Keyboards.choosing_type_of_data_kb(1):		# all legendary items
 		state_data = await state.get_data()
 		genshin_user = state_data.get("genshin_user")
-		return_to_user = {}
 		response = []
-		for key, value in types_of_wishes.items():
-			temp = db.get_legendary_items(genshin_user, key)
-			if temp:
-				return_to_user[key] = temp
-			else:
-				pass
-		if return_to_user:
-			for key, value in return_to_user.items():
-				response.append(f'<b><i><u>{types_of_wishes[key]}</u></i></b>:')
-				for item in value:
-					if item.get("garant") is None:
-						response.append(f'<b>{item.get("name")}</b> - на <u>{item.get("row_num")}</u> крутке')
-					else:
-						response.append(f'<b>{item.get("name")}</b> - на <u>{item.get("garant")}</u> крутке')
-			await message.answer("\n".join(response), parse_mode=types.ParseMode.HTML)
-		else:
-			await message.answer("На данный момент у тебя нет легендарок")
+		temp = db.get_legendary_items(genshin_user)
+		for key, value in temp.items():
+			response.append(f'<b><i><u>{types_of_wishes[key]}</u></i></b>:')
+			for item in value:
+				if item.get("garant") is None:
+					response.append(f'<b>{item.get("name")}</b> - на <u>{item.get("row_num")}</u> крутке')
+				else:
+					response.append(f'<b>{item.get("name")}</b> - на <u>{item.get("garant")}</u> крутке')
+		await message.answer("\n".join(response), parse_mode=types.ParseMode.HTML)
 	elif message.text == kb.Keyboards.choosing_type_of_data_kb(2):
 		await message.answer("С чего начнем?", reply_markup=kb.Keyboards.waiting_for_options_kb())
 		await Stages.waiting_for_option.set()

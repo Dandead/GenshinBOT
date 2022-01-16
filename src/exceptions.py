@@ -9,6 +9,17 @@ class AuthKeyMissedException(Exception):
 		return "Не могу обработать, проверьте правильность ввода ссылки!"
 
 
+class UserWithoutWishes(Exception):
+	def __init__(self, uid: str = None):
+		self.uid = uid
+	
+	def __str__(self):
+		return f'\033[31mThat user can`t be processed without wishes. UID:{self.uid}\033[0m'
+	
+	def return_to_user(self):
+		return "Прошло слишком много времени с последней молитвы либо их не было вовсе."
+
+
 class AuthKeyInvalidException(Exception):
 	def __init__(self, message: str = None, uid: str = None):
 		self.message = message
