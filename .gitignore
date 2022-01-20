@@ -1,6 +1,6 @@
 log
 .idea
-config
+config/*.ini
 pyvenv.cfg
 venv
 __pycache__
