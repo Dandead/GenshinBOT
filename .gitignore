@@ -1,4 +1,4 @@
-log
+log/*.log
 .idea
 config/*.ini
 pyvenv.cfg
