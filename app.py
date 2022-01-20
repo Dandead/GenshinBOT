@@ -97,7 +97,21 @@ LOGGING_CONFIG = {
 }
 
 
+def logs_files_maker():
+    try:
+        with open("log/bot.log", "x"):
+            pass
+    except:
+        pass
+    try:
+        with open("log/databases.log", "x"):
+            pass
+    except:
+        pass
+
+
 if __name__ == '__main__':
+    logs_files_maker()
     logging.config.dictConfig(LOGGING_CONFIG)
     try:
         asyncio.run(bot.main())
