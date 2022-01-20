@@ -2,9 +2,10 @@ import logging
 import configparser
 import mysql.connector
 import aioredis
+import src.exceptions as exceptions
 from collections import Counter
 
-logger = logging.getLogger("databases")
+logger = logging.getLogger(__name__)
 
 
 def wishes_db_conn(func):
@@ -19,6 +20,9 @@ def wishes_db_conn(func):
 			res = func(*args, conn=connect, **kwargs)
 		except mysql.connector.Error as e:
 			logger.critical(e)
+			# raise e
+		except exceptions.Error as e:
+			logger.warning(e)
 			raise e
 		else:
 			return res
@@ -44,9 +48,11 @@ def check_user(user_id: str, **kwargs) -> bool:
 def create_user(user_id: str, **kwargs):
 	"""Must append user's info string into DB."""
 	cursor = kwargs.pop("conn").cursor(dictionary=True)
+	if check_user(user_id):
+		return
 	cursor.execute(
 		f'INSERT INTO `usr` '
-		f'VALUES ("{user_id}","en","{kwargs.get("authkey")}")')
+		f'VALUES ("{user_id}","ru","{kwargs.get("authkey")}")')
 	logger.info(f'User {user_id} created in DB')
 
 
@@ -142,7 +148,6 @@ def get_legendary_items(user_id, **kwargs) -> dict:
 				to_return.update({gacha_id: cursor.fetchall()})
 		return to_return
 	except Exception as e:
-		logger.critical(f'database.get_legendary_items method: {e}')
 		raise e
 
 	
@@ -189,7 +194,6 @@ def get_guarantee(user_id, **kwargs) -> dict:
 					to_return.update({gacha_id: data.get("row_num")})
 		return to_return
 	except Exception as e:
-		logger.critical(f'database.get_guarantee method: {e}')
 		raise e
 	
 
@@ -208,4 +212,4 @@ async def duplicate_protection(uid: str, check: bool = False, remove: bool = Fal
 		await redis.close()
 
 if __name__ == '__main__':
-	print(get_guarantee("715407122"))
+	print(create_user("715407122"))

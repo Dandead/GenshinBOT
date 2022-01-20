@@ -5,11 +5,12 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 import aiogram.utils.markdown as md
 from src import database as db, exceptions, user
 from src.bot import keyboards as kb
+from src.bot.handlers.base_handlers import cmd_start
 from emoji import emojize
 import re
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("handlers")
 types_of_wishes = {
 				"100": "Молитва новичка",
 				"200": "Стандартная молитва",
@@ -25,7 +26,7 @@ def register_handlers_wishes(dp: Dispatcher):
 	dp.register_message_handler(handling_link_from_user, state=Stages.waiting_for_link)
 	dp.register_message_handler(waiting_for_options, state=Stages.waiting_for_option)
 	dp.register_message_handler(choosing_type_of_data, state=Stages.choosing_type_of_data)
-	dp.register_message_handler(foo, state="*")
+	dp.register_message_handler(cmd_start, state="*")
 
 
 class Stages(StatesGroup):
@@ -33,18 +34,6 @@ class Stages(StatesGroup):
 	waiting_for_key = State()
 	waiting_for_option = State()
 	choosing_type_of_data = State()
-
-async def foo(message: types.Message, state: FSMContext):
-	await state.finish()
-	start_buttons = [
-		emojize("Ключ :key:"),
-		emojize("Ссылка :crystal_ball:")
-	]
-	buttons_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-	buttons_keyboard.add(*start_buttons)
-	await message.answer(
-		'Привет!\nЯ бот для обработки молитв пользователей в игре Genshin Impact\nЕсли у тебя нет ключа, то входи по ссылке на молитвы!',
-		reply_markup=buttons_keyboard)
 
 
 async def get_key_from_user(message: types.Message, state: FSMContext):
@@ -108,11 +97,10 @@ async def waiting_for_options(message: types.Message, state: FSMContext):
 				return_to_user.append(f'<b><i><u>{types_of_wishes[key]}</u></i></b>: было добавлено {md.hcode(value)} новых молитв\n')
 			await message.answer(''.join(return_to_user), parse_mode=types.ParseMode.HTML)
 			return
-		except exceptions.DuplicateUserInLoop as e:
-			await message.answer("Пожалуйста, подождите пока этот пользователь будет обработан!")
-			logger.warning("Duplicate user in writing loop", extra={"user": "message.chat.id"})
+		except exceptions.Error as e:
+			logger.error(f'{e}. User: {message.chat.id}')
+			await message.answer(e.return_to_user)
 		except Exception as e:
-			logger.error(e, extra={"user": "message.chat.id"})
 			await message.answer("Что-то пошло не так!\nСвяжитесь с разработчиком!")
 	elif message.text == kb.Keyboards.waiting_for_options_kb(1):
 		await message.answer("Учти, что на серверах игры хранятся данные о молитавах только за последние <u>6</u> месяцев", parse_mode=types.ParseMode.HTML)
@@ -133,7 +121,6 @@ async def choosing_type_of_data(message: types.Message, state: FSMContext):
 		state_data = await state.get_data()
 		genshin_user = state_data.get("genshin_user")
 		temp = db.get_guarantee(genshin_user)
-		print(temp)
 		answer = []
 		for key, value in temp.items():
 			answer.append(

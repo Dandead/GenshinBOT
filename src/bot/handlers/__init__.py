@@ -1,1 +1,1 @@
-__all__ = ["wishes_handler"]
+__all__ = ["wishes_handler", "base_handlers"]

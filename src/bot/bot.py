@@ -36,7 +36,7 @@ async def main():
 	finally:
 		await dp.storage.close()
 		await dp.storage.wait_closed()
-		await bot.session.close()
+		# await bot.session.close()
 		logger.error("Closing bot")
 
 if __name__ == "__main__":

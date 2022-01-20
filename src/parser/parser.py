@@ -1,7 +1,10 @@
-from typing import Union
+import logging
 import aiohttp
 import requests
 from src import exceptions
+
+
+logger = logging.getLogger(__name__)
 
 
 async def async_get_data(authkey: str, gacha_id: str, end_id: str) -> list:

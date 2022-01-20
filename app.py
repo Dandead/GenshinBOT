@@ -11,6 +11,10 @@ LOGGING_CONFIG = {
             "format": "%(asctime)s:%(name)s:%(process)d:%(lineno)d " "%(levelname)s %(message)s",
             "datefmt": "%Y-%m-%d %H:%M:%S"
         },
+        "detailed": {
+            "format": "%(asctime)s:%(name)s:%(process)d:%(filename)s:%(funcName)s:%(lineno)d " "%(levelname)s %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S"
+        },
         # "json": {
         #     "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
         #     "format": """
@@ -52,7 +56,7 @@ LOGGING_CONFIG = {
             "backupCount": 3
         },
         "errors": {
-            "formatter": "default",
+            "formatter": "detailed",
             "level": "ERROR",
             "class": "logging.handlers.RotatingFileHandler",
             "filename": "log/errors.log",
@@ -66,7 +70,19 @@ LOGGING_CONFIG = {
                 "databases"
             ]
         },
-        "bot": {
+        "handlers": {
+            "level": "INFO",
+            "handlers": [
+                "bot"
+            ]
+        },
+        "parser": {
+            "level": "INFO",
+            "handlers": [
+                "bot"
+            ]
+        },
+        "user": {
             "level": "INFO",
             "handlers": [
                 "bot"
@@ -74,7 +90,6 @@ LOGGING_CONFIG = {
         },
     },
     "root": {
-        "level": "INFO",
         "handlers": [
             "errors"
         ]
@@ -84,4 +99,8 @@ LOGGING_CONFIG = {
 
 if __name__ == '__main__':
     logging.config.dictConfig(LOGGING_CONFIG)
-    asyncio.run(bot.main())
+    try:
+        asyncio.run(bot.main())
+    except (KeyboardInterrupt, SystemExit):
+        pass # logger.error("Bot stopped!")
+
