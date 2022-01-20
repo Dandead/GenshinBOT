@@ -108,6 +108,11 @@ def logs_files_maker():
             pass
     except:
         pass
+    try:
+        with open("log/errors.log.log", "x"):
+            pass
+    except:
+        pass
 
 
 if __name__ == '__main__':
