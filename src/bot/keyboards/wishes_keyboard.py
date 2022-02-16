@@ -21,12 +21,12 @@ class Keyboards:
 	def choosing_type_of_data_kb(button: int = None) -> Union[types.ReplyKeyboardMarkup, str]:
 		buttons = [
 			emojize("Узнать гарант :sparkles:"),
-			emojize("Показать легендарки :star:"),
+			emojize("Показать мои легендарки :star:"),
 			emojize("Назад :hammer:")
 		]
 		if button is not None:
 			return buttons[button]
-		buttons_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True).add(buttons[0]).add(buttons[1]).add(
+		buttons_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True).row(*buttons[0:2]).add(
 			buttons[2])
 		return buttons_keyboard
 
