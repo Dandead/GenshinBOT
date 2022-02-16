@@ -1,11 +1,14 @@
 [GENSHIN_USERS]
 host = localhost
-database = db_name
-user = db_user
-password = db_pass
-[REDIS_CACHE]
-password = redis_pass
+database = some
+user = some
+password = some
+[REDIS_FSM]
+password = some
 db = 0
 prefix = fsm_key
 state_ttl = 43200
 data_ttl = 43200
+[REDIS_DP]
+password = some
+db = 1

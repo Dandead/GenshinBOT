@@ -118,18 +118,18 @@ def get_legendary_items(user_id, **kwargs) -> dict:
 	"""Return list of legendary items with banners id"""
 	cursor = kwargs.pop("conn").cursor(dictionary=True)
 	try:
-		to_return = {"100": [], "200": [], "301": [], "302": [], "400": []}
+		to_return = {"100": [], "200": [], "301": [], "302": []}
 		for gacha_id in ["100", "200", "301", "302"]:
 			if gacha_id == "301":
 				cursor.execute(
-					f'SELECT res_tab.name, res_tab.gacha_type, res_tab.rn as row_num, (res_tab.rn - lag(res_tab.rn) over()) AS garant '
+					f'SELECT res_tab.name, "301" as gacha_type, res_tab.rn as row_num, (res_tab.rn - lag(res_tab.rn) over()) AS garant '
 					f'FROM ('
 					f'	SELECT *, ROW_NUMBER() OVER(order by id) as rn'
 					f'	FROM wishes.`gacha_data`'
 					f'	WHERE (uid="{user_id}" and gacha_type="301") or (uid="{user_id}" and gacha_type="400")'
 					f') AS res_tab '
 					f'WHERE res_tab.rank_type=5 '
-					f'ORDER BY id'
+					f'ORDER BY res_tab.id'
 				)
 				data = cursor.fetchall()
 				for item in data:
@@ -143,7 +143,7 @@ def get_legendary_items(user_id, **kwargs) -> dict:
 					f'	WHERE uid="{user_id}" and gacha_type="{gacha_id}"'
 					f') AS res_tab '
 					f'WHERE res_tab.rank_type=5 '
-					f'ORDER BY id'
+					f'ORDER BY res_tab.id'
 				)
 				to_return.update({gacha_id: cursor.fetchall()})
 		return to_return

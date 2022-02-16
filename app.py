@@ -115,5 +115,5 @@ if __name__ == '__main__':
 	try:
 		asyncio.run(bot.main())
 	except (KeyboardInterrupt, SystemExit):
-		pass # logger.error("Bot stopped!")
+		pass	# logger.error("Bot stopped!")
 
