@@ -8,7 +8,7 @@ class Keyboards:
 	def waiting_for_options_kb(button: int = None) -> Union[types.ReplyKeyboardMarkup, str]:
 		buttons = [
 			emojize("Обновить список молитв :fireworks:"),
-			emojize("Получить подробную статистику :bar_chart:"),
+			emojize("Получить статистику :bar_chart:"),
 			emojize("Обновить/получить ключ :key:")
 		]
 		if button is not None:
